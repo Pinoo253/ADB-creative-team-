@@ -26,7 +26,6 @@
             <label>Isi lengkap<textarea name="body" rows="5" placeholder="Isi berita / detail informasi (opsional)"></textarea></label>
             <div class="admin-two-col"><label>Tanggal agenda / kegiatan<input name="event_date" type="datetime-local"></label><label>Lokasi<input name="location" maxlength="180" placeholder="Lokasi (opsional)"></label></div>
             <label>File foto atau video<input name="media" type="file" accept="image/jpeg,image/png,image/webp,image/gif,image/avif,video/mp4,video/webm,video/quicktime"></label>
-            <label>Atau link YouTube (opsional)<input name="youtube_url" type="url" placeholder="https://www.youtube.com/watch?v=... atau https://youtu.be/..."></label>
             <p class="admin-hint">Maksimal 50 MB per file. Foto dan video disimpan di Supabase Storage. Untuk video besar, gunakan tautan YouTube.</p>
             <label class="publish-check"><input name="is_published" type="checkbox"> Terbitkan ke website sekarang</label>
             <div class="admin-actions"><button class="btn btn-primary" id="save-button" type="submit">Simpan konten ↗</button><button class="btn btn-light" id="clear-button" type="button">Bersihkan</button></div>
