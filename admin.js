@@ -12,6 +12,30 @@
   const toast = msg => { const el=$("#toast"); el.textContent=msg; el.classList.add("show"); setTimeout(()=>el.classList.remove("show"),3500); };
   const esc = value => String(value ?? "").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
   const form = $("#content-form");
+  const parseSocial = value => { try { const u = new URL(value); const h = u.hostname.replace(/^www\./,"").replace(/^m\./,""); let m;
+    if (h==="youtu.be" || h==="youtube.com" || h==="music.youtube.com") { let id = h==="youtu.be" ? u.pathname.slice(1) : u.pathname.startsWith("/watch") ? (u.searchParams.get("v")||"") : ((u.pathname.match(/^\/(?:shorts|embed|live)\/([\w-]{11})/)||[])[1]||""); id = id.slice(0,11); if (/^[\w-]{11}$/.test(id)) return {platform:"youtube",label:"YouTube",id,embed:`https://www.youtube-nocookie.com/embed/${id}?autoplay=1&rel=0`,thumb:`https://img.youtube.com/vi/${id}/hqdefault.jpg`,ratio:"16/9"}; }
+    if (h==="tiktok.com" && (m = u.pathname.match(/\/video\/(\d{8,25})/))) return {platform:"tiktok",label:"TikTok",id:m[1],embed:`https://www.tiktok.com/embed/v2/${m[1]}`,thumb:"",ratio:"9/16"};
+    if (h==="instagram.com" && (m = u.pathname.match(/\/(p|reel|reels|tv)\/([\w-]+)/))) { const kind = m[1]==="reels" ? "reel" : m[1]; return {platform:"instagram",label:"Instagram",id:m[2],embed:`https://www.instagram.com/${kind}/${m[2]}/embed/captioned/`,thumb:"",ratio:"9/16"}; }
+  } catch {} return null; };
+  const linkInput = () => form.elements.youtube_url;
+  let lastFilled = "";
+  async function autofillFromLink(){
+    const url = linkInput().value.trim(); const sp = parseSocial(url);
+    if (!sp || url === lastFilled) return; lastFilled = url;
+    const st = $("#form-status"); st.textContent = "Mengambil judul & keterangan dari "+sp.label+"...";
+    try {
+      const res = await fetch("https://noembed.com/embed?url="+encodeURIComponent(url));
+      const info = await res.json();
+      if (info && !info.error && (info.title || info.author_name)) {
+        const caption = String(info.title||"").trim(), author = String(info.author_name||"").trim();
+        if (!form.elements.title.value.trim()) form.elements.title.value = (caption || author).slice(0,180);
+        if (!form.elements.description.value.trim()) form.elements.description.value = [author && "Oleh "+author, caption].filter(Boolean).join("\n").slice(0,500);
+        st.textContent = "Judul & keterangan terisi otomatis. Boleh diedit sebelum disimpan."; return;
+      }
+    } catch(e) { console.warn("Autofill link:", e); }
+    st.textContent = sp.label+": judul/keterangan tidak bisa diambil otomatis, isi manual. Keterangan asli tetap tampil di video.";
+  }
+  form.addEventListener("change", e => { if (e.target && e.target.name === "youtube_url") autofillFromLink(); });
   if (!client) { $("#login-status").textContent="Koneksi Supabase belum tersedia. Periksa config.js dan pastikan library Supabase termuat."; return; }
 
   async function isAuthorized(user) {
@@ -55,7 +79,7 @@
     if(deleteIndex!==undefined){await deleteRecord(records[Number(deleteIndex)]);}
   });
   function fillForm(item){
-    form.elements.id.value=item.id; form.elements.old_media_url.value=item.media_url||"";
+    form.elements.id.value=item.id; form.elements.old_media_url.value=item.media_url||""; form.elements.youtube_url.value=parseSocial(item.media_url||"")?item.media_url:"";
     form.elements.title.value=item.title||""; form.elements.description.value=item.description||"";
     form.elements.body.value=item.body||""; form.elements.location.value=item.location||"";
     form.elements.event_date.value=item.event_date?new Date(item.event_date).toISOString().slice(0,16):"";
@@ -93,10 +117,14 @@
       const fd=new FormData(form),id=String(fd.get("id")||""),oldUrl=String(fd.get("old_media_url")||""),file=form.elements.media.files[0];
       const payload={category:currentCategory,title:String(fd.get("title")||"").trim(),description:String(fd.get("description")||"").trim(),body:String(fd.get("body")||"").trim(),location:String(fd.get("location")||"").trim()||null,event_date:fd.get("event_date")?new Date(fd.get("event_date")).toISOString():null,is_published:form.elements.is_published.checked};
       if(!payload.title)throw new Error("Judul wajib diisi.");
+      const ytUrl=String(fd.get("youtube_url")||"").trim();
+      if(ytUrl&&file)throw new Error("Pilih salah satu: upload file ATAU link video.");
+      if(ytUrl&&!parseSocial(ytUrl))throw new Error("Link tidak dikenali. Pakai link lengkap YouTube, TikTok (…/video/angka), atau Instagram (/p/ atau /reel/). Link pendek TikTok (vt./vm.) belum didukung, buka dulu lalu salin link lengkapnya.");
       let uploaded=null;if(file){uploaded=await uploadFile(file);payload.media_url=uploaded.url;payload.media_type=uploaded.type;}
+      else if(ytUrl){payload.media_url=ytUrl;payload.media_type="video";}
       const result=id?await client.from("content_items").update(payload).eq("id",id):await client.from("content_items").insert(payload);
       if(result.error){if(uploaded)await deleteStoredFile(uploaded.url);throw result.error;}
-      if(file&&oldUrl)await deleteStoredFile(oldUrl);
+      if((file||ytUrl)&&oldUrl&&oldUrl!==ytUrl)await deleteStoredFile(oldUrl);
       status.textContent="Konten berhasil disimpan.";toast("Konten berhasil disimpan.");resetForm();await loadRecords();
     }catch(error){status.textContent="Gagal: "+error.message;toast("Gagal menyimpan konten.");console.error(error);}
     finally{button.disabled=false;}
