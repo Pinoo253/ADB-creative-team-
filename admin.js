@@ -12,6 +12,7 @@
   const toast = msg => { const el=$("#toast"); el.textContent=msg; el.classList.add("show"); setTimeout(()=>el.classList.remove("show"),3500); };
   const esc = value => String(value ?? "").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
   const form = $("#content-form");
+  const ytId = value => { try { const u=new URL(value); const h=u.hostname.replace(/^www\./,""); let id=""; if(h==="youtu.be")id=u.pathname.slice(1); else if(h==="youtube.com"||h==="m.youtube.com"||h==="music.youtube.com")id=u.pathname.startsWith("/watch")?(u.searchParams.get("v")||""):(u.pathname.match(/^\/(?:shorts|embed|live)\/([\w-]{11})/)||[])[1]||""; return /^[\w-]{11}$/.test(id)?id:""; } catch { return ""; } };
   if (!client) { $("#login-status").textContent="Koneksi Supabase belum tersedia. Periksa config.js dan pastikan library Supabase termuat."; return; }
 
   async function isAuthorized(user) {
@@ -55,7 +56,7 @@
     if(deleteIndex!==undefined){await deleteRecord(records[Number(deleteIndex)]);}
   });
   function fillForm(item){
-    form.elements.id.value=item.id; form.elements.old_media_url.value=item.media_url||"";
+    form.elements.id.value=item.id; form.elements.old_media_url.value=item.media_url||""; form.elements.youtube_url.value=ytId(item.media_url||"")?item.media_url:"";
     form.elements.title.value=item.title||""; form.elements.description.value=item.description||"";
     form.elements.body.value=item.body||""; form.elements.location.value=item.location||"";
     form.elements.event_date.value=item.event_date?new Date(item.event_date).toISOString().slice(0,16):"";
@@ -93,10 +94,14 @@
       const fd=new FormData(form),id=String(fd.get("id")||""),oldUrl=String(fd.get("old_media_url")||""),file=form.elements.media.files[0];
       const payload={category:currentCategory,title:String(fd.get("title")||"").trim(),description:String(fd.get("description")||"").trim(),body:String(fd.get("body")||"").trim(),location:String(fd.get("location")||"").trim()||null,event_date:fd.get("event_date")?new Date(fd.get("event_date")).toISOString():null,is_published:form.elements.is_published.checked};
       if(!payload.title)throw new Error("Judul wajib diisi.");
+      const ytUrl=String(fd.get("youtube_url")||"").trim();
+      if(ytUrl&&file)throw new Error("Pilih salah satu: upload file ATAU link YouTube.");
+      if(ytUrl&&!ytId(ytUrl))throw new Error("Link YouTube tidak valid.");
       let uploaded=null;if(file){uploaded=await uploadFile(file);payload.media_url=uploaded.url;payload.media_type=uploaded.type;}
+      else if(ytUrl){payload.media_url=ytUrl;payload.media_type="video";}
       const result=id?await client.from("content_items").update(payload).eq("id",id):await client.from("content_items").insert(payload);
       if(result.error){if(uploaded)await deleteStoredFile(uploaded.url);throw result.error;}
-      if(file&&oldUrl)await deleteStoredFile(oldUrl);
+      if((file||ytUrl)&&oldUrl&&oldUrl!==ytUrl)await deleteStoredFile(oldUrl);
       status.textContent="Konten berhasil disimpan.";toast("Konten berhasil disimpan.");resetForm();await loadRecords();
     }catch(error){status.textContent="Gagal: "+error.message;toast("Gagal menyimpan konten.");console.error(error);}
     finally{button.disabled=false;}

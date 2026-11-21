@@ -315,15 +315,3 @@ main h1,main h2,main h3,main strong,main b{opacity:1!important;}
 
 .contact-section .btn-primary,.contact-section .btn-primary *{color:#fff!important}
 .contact-section .btn-light,.contact-section .btn-light *{color:#17305f!important}
-
-/* FIX: kartu "Ideas in motion" tidak boleh menutupi kartu utama */
-.hero-art .card-main{top:2%!important;z-index:1}
-.hero-art .card-float{left:0!important;bottom:-14px!important;z-index:3}
-.hero-art .art-caption{bottom:-14px!important}
-@media(max-width:680px){
-  .hero-art .card-main{top:0!important}
-  .hero-art .card-float{bottom:-30px!important}
-  .hero-art{margin-bottom:30px!important}
-}
-body{overflow-x:clip}
-@media(min-width:681px) and (max-width:1050px){.hero-art .card-float{bottom:-34px!important}}

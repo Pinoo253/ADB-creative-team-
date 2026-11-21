@@ -25,10 +25,24 @@
     document.querySelectorAll(".reveal").forEach(el => observer.observe(el));
   } else document.querySelectorAll(".reveal").forEach(el => el.classList.add("visible"));
 
+  const ytId = value => { try { const u = new URL(value); const h = u.hostname.replace(/^www\./,""); let id = ""; if (h==="youtu.be") id = u.pathname.slice(1); else if (h==="youtube.com"||h==="m.youtube.com"||h==="music.youtube.com") id = u.pathname.startsWith("/watch") ? (u.searchParams.get("v")||"") : (u.pathname.match(/^\/(?:shorts|embed|live)\/([\w-]{11})/)||[])[1]||""; return /^[\w-]{11}$/.test(id) ? id : ""; } catch { return ""; } };
+  function openVideo(id) {
+    const box = document.createElement("div");
+    box.style.cssText = "position:fixed;inset:0;z-index:9999;background:rgba(15,23,42,.88);display:flex;align-items:center;justify-content:center;padding:16px";
+    box.innerHTML = `<div style="position:relative;width:min(900px,100%)"><button type="button" aria-label="Tutup" style="position:absolute;right:0;top:-44px;background:#fff;border:0;border-radius:999px;width:36px;height:36px;font-size:20px;cursor:pointer">×</button><iframe src="https://www.youtube-nocookie.com/embed/${id}?autoplay=1&rel=0" title="Video YouTube" allow="autoplay; encrypted-media; fullscreen; picture-in-picture" allowfullscreen style="width:100%;aspect-ratio:16/9;border:0;border-radius:16px;background:#000"></iframe></div>`;
+    const close = () => { box.remove(); document.removeEventListener("keydown", onKey); };
+    const onKey = e => { if (e.key === "Escape") close(); };
+    box.addEventListener("click", e => { if (e.target === box || e.target.tagName === "BUTTON") close(); });
+    document.addEventListener("keydown", onKey); document.body.appendChild(box);
+  }
+  document.addEventListener("click", e => { const t = e.target.closest("[data-yt]"); if (t) { e.preventDefault(); openVideo(t.dataset.yt); } });
+
   function cardMarkup(item) {
     const url = safeUrl(item.media_url);
     let media = "";
-    if (url && item.media_type === "video") media = `<video class="cms-media" controls preload="metadata"><source src="${escapeHtml(url)}"></video>`;
+    const yt = ytId(url);
+    if (yt) media = `<a href="${escapeHtml(url)}" data-yt="${yt}" class="cms-media" style="display:block;position:relative"><img class="cms-media" src="https://img.youtube.com/vi/${yt}/hqdefault.jpg" alt="${escapeHtml(item.title)}" loading="lazy"><span style="position:absolute;inset:0;margin:auto;width:56px;height:56px;border-radius:50%;background:rgba(37,99,235,.92);color:#fff;display:grid;place-items:center;font-size:22px">▶</span></a>`;
+    else if (url && item.media_type === "video") media = `<video class="cms-media" controls preload="metadata"><source src="${escapeHtml(url)}"></video>`;
     else if (url) media = `<img class="cms-media" src="${escapeHtml(url)}" alt="${escapeHtml(item.title)}" loading="lazy">`;
     const date = formatDate(item.event_date);
     return `<article class="cms-card">${media}<div class="cms-card-body">${date ? `<small class="cms-date">${date}</small>` : ""}<h3>${escapeHtml(item.title)}</h3>${item.description ? `<p>${escapeHtml(item.description)}</p>` : ""}${item.body ? `<details><summary>Baca selengkapnya</summary><p>${escapeHtml(item.body)}</p></details>` : ""}${item.location ? `<small class="cms-location">${escapeHtml(item.location)}</small>` : ""}</div></article>`;
@@ -40,7 +54,7 @@
     if (error) { console.error("Supabase CMS:",error.message); document.querySelectorAll(".cms-grid").forEach(el => el.innerHTML = '<p class="data-note">Konten belum dapat dimuat. Periksa schema dan koneksi Supabase.</p>'); return; }
     Object.entries(targets).forEach(([category,selector]) => { const el = $(selector); if (!el) return; const items = (data||[]).filter(x=>x.category===category); el.innerHTML = items.length ? items.map(cardMarkup).join("") : '<p class="data-note">Belum ada konten yang diterbitkan.</p>'; });
     const gallery = (data||[]).filter(x=>["foto","video"].includes(x.category)).slice(0,6), target = $("#gallery-list");
-    if (target && gallery.length) target.innerHTML = gallery.map((item,i) => { const url=safeUrl(item.media_url); const media=item.media_type==="video" ? `<video src="${escapeHtml(url)}" muted playsinline preload="metadata"></video>` : `<img src="${escapeHtml(url)}" alt="${escapeHtml(item.title)}" loading="lazy">`; return `<a class="gallery-tile cms-gallery-tile" href="${escapeHtml(url||"#")}" target="_blank" rel="noopener noreferrer">${media}<span>${String(i+1).padStart(2,"0")} / ${item.media_type==="video"?"VIDEO":"PHOTO"}</span><b>${escapeHtml(item.title)}</b></a>`; }).join("");
+    if (target && gallery.length) target.innerHTML = gallery.map((item,i) => { const url=safeUrl(item.media_url); const yt=ytId(url); const media=yt ? `<img src="https://img.youtube.com/vi/${yt}/hqdefault.jpg" alt="${escapeHtml(item.title)}" loading="lazy"><i style="position:absolute;inset:0;margin:auto;width:56px;height:56px;border-radius:50%;background:rgba(37,99,235,.92);display:grid;place-items:center;font-style:normal;font-size:22px;z-index:1">▶</i>` : item.media_type==="video" ? `<video src="${escapeHtml(url)}" muted playsinline preload="metadata"></video>` : `<img src="${escapeHtml(url)}" alt="${escapeHtml(item.title)}" loading="lazy">`; return `<a class="gallery-tile cms-gallery-tile" ${yt?`data-yt="${yt}" `:""}href="${escapeHtml(url||"#")}" target="_blank" rel="noopener noreferrer">${media}<span>${String(i+1).padStart(2,"0")} / ${item.media_type==="video"?"VIDEO":"PHOTO"}</span><b>${escapeHtml(item.title)}</b></a>`; }).join("");
   }
   async function loadLegacyContent() {
     if (!client) return;
