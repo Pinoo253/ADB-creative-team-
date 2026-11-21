@@ -327,3 +327,12 @@ main h1,main h2,main h3,main strong,main b{opacity:1!important;}
 }
 body{overflow-x:clip}
 @media(min-width:681px) and (max-width:1050px){.hero-art .card-float{bottom:-34px!important}}
+
+
+/* LOGO BULAT — logo ADB Creative Team berbentuk lingkaran */
+.adb-brand,.site-header .adb-brand,.footer .adb-brand,.admin-brand{flex:0 0 auto!important;width:auto!important;min-width:0!important;max-width:none!important}
+.adb-logo{width:76px!important;height:76px!important;max-height:none!important;aspect-ratio:1/1!important;border-radius:50%!important;background:transparent!important;object-fit:contain!important;object-position:center!important;border:0!important;box-shadow:0 4px 14px #0b367b40!important}
+.footer .adb-logo{width:72px!important;height:72px!important}
+.admin-brand .adb-logo{width:84px!important;height:84px!important}
+@media(max-width:1300px){.adb-logo{width:64px!important;height:64px!important}.footer .adb-logo{width:68px!important;height:68px!important}.admin-brand .adb-logo{width:76px!important;height:76px!important}}
+@media(max-width:680px){.adb-logo{width:56px!important;height:56px!important}.footer .adb-logo{width:60px!important;height:60px!important}.admin-brand .adb-logo{width:68px!important;height:68px!important}}
